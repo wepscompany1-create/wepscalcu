@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>حاسبة ويبس – أداة اتخاذ قرار الشحن الذكي | Weps Calculator</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Mapbox -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css"/>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+</head>
+<body>
+
+<!-- أخبار أعلى -->
+<div class="top-news" role="region" aria-label="شريط الأخبار">
+  <div class="inner" id="newsInner">📢 حسب القرارات الجديدة في جمارك الجنوب، يجب إحضار إشعار مصارفة من البنك المركزي في عدن لأجل إدخال البضاعة من المنافذ الجنوبية.</div>
+</div>
+
+<!-- Header -->
+<div class="header" role="banner">
+  <div class="logo" aria-hidden="true">WEPS</div>
+  <div class="header-text">
+    <h1>يشحن معنا الأذكياء</h1>
+    <p>اكتشف التكلفة الحقيقية + التأمين الذكي + التوصية الأفضل</p>
+  </div>
+  <div class="header-right">
+    <span id="mondayStatusBadge" class="badge">Monday…</span>
+    <button id="refreshMondayBtn" class="btn" style="background:#fff;border:1px solid rgba(11,18,32,0.12);color:#0b1220">⟳ تحديث من Monday</button>
+    <div class="small">دعم: <strong>+9671510656</strong></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Floating WhatsApp -->
+<!-- Webchat -->
+<div class="chat-launcher" id="chatLauncher">
+  <button type="button" id="chatOpenBtn" aria-expanded="false">
+    <span class="dot" aria-hidden="true"></span>
+    <span>تحتاج مساعدة؟</span>
+  </button>
+</div>
+<div class="chat-overlay" id="chatOverlay"></div>
+<div class="chat-panel" id="chatPanel" role="dialog" aria-modal="true" aria-hidden="true">
+  <header>
+    <div>
+      <h3>دردشة خدمة Weps</h3>
+      <p style="margin:4px 0 0;font-size:12px;opacity:0.85">أدخل بياناتك وحدد سبب التواصل لنوصلك بأحد المختصين.</p>
+    </div>
+    <button type="button" id="chatCloseBtn" aria-label="إغلاق">×</button>
+  </header>
+  <div class="chat-body">
+    <div class="chat-session" id="chatSessionSection">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="live-chat-frame">
+        <iframe id="botsailorChatFrame" title="دردشة Botsailor" allow="clipboard-read; clipboard-write" loading="lazy"></iframe>
+    </div>
+    </div>
+    <div id="chatFormSection">
+    <div>
+      <label for="chatName">اسم العميل</label>
+      <input id="chatName" type="text" placeholder="الاسم الكامل" autocomplete="name">
+    </div>
+      <div class="phone-field">
+      <label for="chatPhone">رقم الجوال</label>
+        <div class="phone-input-wrapper">
+          <span id="chatPhoneFlag" class="chat-phone-flag" aria-hidden="true"></span>
+          <input id="chatPhone" type="tel" placeholder="مثال: 770000000" autocomplete="tel" inputmode="tel">
+        </div>
+    </div>
+    <div>
+      <label for="chatReason">سبب التواصل</label>
+      <select id="chatReason">
+        <option value="">اختر من القائمة...</option>
+        <option value="smart-tool">أستفسر عن أداة الشحن الذكي</option>
+        <option value="pricing">نظام التسعير والخصومات</option>
+        <option value="pioneers">نظام رواد ويبس</option>
+        <option value="complaint">شكوى عن شحنة حالية</option>
+        <option value="suggestion">مقترح للتحسين</option>
+        <option value="payment">استفسار عن آلية الدفع</option>
+      </select>
+    </div>
+    <div class="sub-reason" id="chatSubReason">
+      <span style="font-size:12px;color:var(--weps-muted)">اختر موضوع الاستفسار بالتحديد:</span>
+      <label><input type="radio" name="chatSub" value="آلية التقاط الشحنات"> آلية التقاط الشحنات</label>
+      <label><input type="radio" name="chatSub" value="الخدمات الإضافية"> أريد الاستفسار عن الخدمات الإضافية</label>
+      <label><input type="radio" name="chatSub" value="التأمين الذكي"> أريد الاستفسار عن التأمين الذكي</label>
+      <label><input type="radio" name="chatSub" value="المخازن الخاصة بكم"> أريد الاستفسار عن المخازن الخاصة بكم</label>
+      <label><input type="radio" name="chatSub" value="وقت التوصيل"> أريد الاستفسار عن وقت التوصيل</label>
+      <label><input type="radio" name="chatSub" value="نظام التنبيهات الذكية"> أريد الاستفسار عن نظام التنبيهات الذكية</label>
+    </div>
+    <div>
+      <label for="chatNotes">تفاصيل إضافية (اختياري)</label>
+      <textarea id="chatNotes" placeholder="اكتب أي معلومات تساعد فريق الدعم"></textarea>
+    </div>
+  </div>
+  </div>
+  <div class="chat-actions" id="chatActions">
+    <button type="button" id="chatSendBtn">إرسال الطلب</button>
+  </div>
+</div>
+
+<!-- Mobile Bottom Bar -->
+<div class="mobile-bottom-bar" style="display:none">
+  <button id="mobileCalculateBtn" class="btn btn-primary" onclick="document.getElementById('calculateBtn').click()">اعرف التكلفة</button>
+  <button class="btn btn-secondary" onclick="openQuickWhatsApp()">تواصل معنا</button>
+</div>
+
+<!-- Main -->
+<div class="container" role="main">
+
+  <!-- Left: Inputs -->
+  <div class="card" id="inputCard" aria-labelledby="calcTitle">
+    <h2 id="calcTitle" class="calculator-title">حاسبة ويبس – أداة اتخاذ قرار الشحن الذكي</h2>
+    <div class="tagline">ليس مجرد حاسبة أسعار، بل أداة ذكية تحلل لك جميع خيارات الشحن وتقدم التوصية المثالية حسب نوع بضاعتك وتكلفتها ومخاطرها. مع ويبس… أنت لا تحسب السعر، أنت تتخذ القرار الصحيح.</div>
+    
+    <!-- First Time Banner -->
+    <div id="firstTimeBanner" class="first-time-banner" style="display:none">
+      <div style="font-weight:800;margin-bottom:8px">🎬 جديد على الحاسبة؟</div>
+      <div>شاهد دليل الاستخدام الشامل على <a href="https://www.youtube.com/@%D9%88%D9%8A%D8%A8%D8%B3_%D9%84%D9%84%D8%B4%D8%AD%D9%86/playlists" target="_blank">قناة ويبس على يوتيوب</a></div>
+    </div>
+
+    <div class="toggle-mode" role="tablist" aria-label="اختيار الوضع">
+      <button id="btnQuick" class="btn btn-quick" aria-pressed="true">الوضع السريع</button>
+      <button id="btnFull" class="btn btn-full" aria-pressed="false">الوضع الكامل</button>
+    </div>
+
+    <!-- Quick -->
+    <form id="quickForm" style="display:block" aria-hidden="false">
+      <label>دولة المنشأ</label>
+      <select id="quickOrigin"></select>
+
+      <label style="margin-top:8px">إلى (مدن اليمن)</label>
+      <select id="quickDest">
+        <option>عدن</option><option>لحج</option><option>الضالع</option><option>أبين</option><option>شبوة</option><option>حضرموت</option><option>المهرة</option><option>تعز المدينة</option>
+        <option>صنعاء</option><option>الحديدة</option><option>إب</option><option>عمران</option><option>ذمار</option><option>المحويت</option><option>صعدة</option><option>البيضاء</option><option>تعز الحوبان</option><option>ريمة</option><option>حجة</option><option>مأرب</option>
+      </select>
+
+      <label style="margin-top:8px">الوزن التقريبي (كجم)</label>
+      <input id="quickWeight" type="number" min="0" value="10"/>
+
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button id="quickCalc" type="button" class="btn btn-quick">اعرف التكلفة سريعاً</button>
+        <button id="toFull" type="button" class="btn btn-full">الوضع الكامل</button>
+      </div>
+      <div id="quickResultCard" class="quick-result-card" aria-live="polite">
+        <div class="quick-result-title">💡 نتيجتك السريعة</div>
+        <div id="quickResultBody" class="quick-result-body"></div>
+        <button type="button" id="quickToFullBtn" class="btn btn-full" style="margin-top:12px">احصل على خطة الشحن الذكية المتكاملة</button>
+      </div>
+    </form>
+    <!-- Full -->
+    <form id="fullForm" style="display:none;margin-top:10px" aria-hidden="true">
+      
+      <!-- File Upload Section -->
+      <div class="file-upload-section" id="fileUploadSection" style="margin-bottom:24px">
+        <div class="file-upload-icon">🤖</div>
+        <div style="margin-bottom:16px">
+          <div style="font-weight:900;font-size:18px;color:var(--weps-navy);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+            <span>✨</span>
+            <span>ملء تلقائي للبيانات - وفر وقتك!</span>
+          </div>
+          <div style="font-size:14px;color:var(--weps-muted);line-height:1.8;margin-bottom:12px">
+            ارفع الفاتورة، قائمة التعبئة، أو ملف Excel وسنقوم بتحليلها تلقائياً وملء جميع البيانات لك.
+            <br/><strong style="color:var(--weps-orange)">ستوفر دقائق من وقتك!</strong>
+          </div>
+          
+          <div style="padding:12px;background:#fff;border-radius:8px;border-right:3px solid var(--weps-mint)">
+            <div style="font-size:13px;color:var(--weps-navy);font-weight:700;margin-bottom:6px">📋 ما سيتم ملؤه تلقائياً:</div>
+            <div style="font-size:12px;color:var(--weps-muted);line-height:1.8">
+              ✓ بيانات العميل (الاسم، الهاتف)<br/>
+              ✓ عنوان الشحنة وتحديد الدولة<br/>
+              ✓ نوع المنتج وفئته<br/>
+              ✓ بيانات الطرود (الأبعاد، الوزن، الكمية)<br/>
+              ✓ قيمة الشحنة<br/>
+              ✓ وصف دقيق للبضاعة بناءً على أسماء الأصناف
+            </div>
+          </div>
+        </div>
+        <input type="file" id="invoiceFileInput" class="file-upload-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv" multiple onchange="handleFileUpload(event)"/>
+        <label for="invoiceFileInput" class="file-upload-label">
+          <span>📎</span>
+          <span>اختر ملف (PDF, Excel, Word, صورة) أو اسحبه هنا</span>
+        </label>
+        <div style="margin-top:8px;font-size:12px;color:var(--weps-muted);text-align:center">
+          يدعم: PDF • Excel (XLS, XLSX) • Word • صور (JPG, PNG)
+        </div>
+        <div class="file-upload-progress" id="fileUploadProgress">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div class="loading" style="width:20px;height:20px"></div>
+            <span style="font-size:13px;color:var(--weps-navy);font-weight:700" id="uploadStatus">جاري تحليل الملف...</span>
+          </div>
+          <div class="progress-bar-visual">
+            <div class="progress-bar-fill" id="progressBarFill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="analysis-output-card" id="analysisOutputCard" aria-live="polite">
+          <h4>📄 نتيجة قراءة الملف</h4>
+          <pre id="analysisOutputPre">لم يتم تحليل أي ملف بعد.</pre>
+        </div>
+      </div>
+      <!-- Step 1: Customer Information -->
+      <div class="step-block collapsed" data-step="1">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">1</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">بيانات العميل</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <label>اسم العميل <span style="color:var(--weps-orange)">*</span></label>
+          <input id="customerName" type="text" placeholder="الاسم الكامل"/>
+
+          <div class="row">
+            <div class="field">
+              <label>جوال <span style="color:var(--weps-orange)">*</span></label>
+              <div class="phone-input" id="customerPhoneWrapper">
+                <span id="customerPhoneFlag" class="phone-flag" aria-hidden="true">🇾🇪</span>
+                <input id="customerPhone" type="text" placeholder="+967777000000" autocomplete="tel"/>
+              </div>
+            </div>
+            <div class="field">
+              <label>نوع العميل <span style="color:var(--weps-orange)">*</span></label>
+              <select id="customerType">
+                <option value="">اختر...</option>
+                <option value="individual">فرد</option>
+                <option value="industrial_company">شركة صناعية / مصنع</option>
+                <option value="spare_parts_supplier">مورد قطع غيار صناعية</option>
+                <option value="large_importer">مستورد كبير</option>
+                <option value="commercial">شركة تجارية</option>
+                <option value="logistics_company">شركة شحن / Logistics Company</option>
+                <option value="international_supplier">مورد دولي</option>
+                <option value="ecommerce_owner">صاحب متجر إلكتروني كبير / eCommerce</option>
+                <option value="wholesaler">تاجر جملة</option>
+                <option value="startup_entrepreneur">رائد أعمال / Start-up</option>
+                <option value="small_business_owner">تاجر ناشئ / Small Business Owner</option>
+                <option value="small_importer">مستورد صغير</option>
+                <option value="local_supplier">مورد محلي</option>
+                <option value="shipping_agent">مكتب شحن وسيط</option>
+                <option value="tech_company">شركة تقنية / ستارت أب</option>
+                <option value="government_entity">مؤسسة حكومية</option>
+                <option value="non_profit">منظمة غير ربحية</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="companyNameField" style="display:none">
+            <label>اسم المؤسسة / الشركة <span style="color:var(--weps-orange)">*</span></label>
+            <input id="companyName" type="text" placeholder="اسم الشركة"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Shipment Origin -->
+      <div class="step-block collapsed" data-step="2">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">2</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">من أين تشحن؟</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <div class="row">
+            <div class="field">
+              <label>دولة المنشأ <span style="color:var(--weps-orange)">*</span></label>
+              <select id="originCountry"></select>
+            </div>
+          </div>
+
+          <!-- Origin Location Map -->
+          <div id="originMapSection" style="margin-top:12px">
+            <label style="font-weight:900">موقع الشحنة (دولة المنشأ) <span style="color:var(--weps-orange)">*</span></label>
+            <div class="small" style="margin-bottom:6px">ابحث بالمدينة أو الرمز البريدي (ZIP Code) لتحديد موقع الشحنة</div>
+            <div class="map-search" id="originMapSearch"></div>
+            <div id="originMap"></div>
+            <div id="originLocationDisplay" class="small" style="margin-top:8px;font-weight:800;color:#0b1220">لم يتم تحديد موقع الشحنة بعد.</div>
+            <input type="hidden" id="originLocation" value=""/>
+            <div class="small" style="margin-top:6px;color:var(--muted)">💡 سيتم حساب المسافة من موقع الشحنة إلى أقرب مخزن تلقائياً</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Shipment Destination -->
+      <div class="step-block collapsed" data-step="3">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">3</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">إلى أين تشحن؟</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <label>الوجهة (مدن اليمن) <span style="color:var(--weps-orange)">*</span></label>
+          <select id="destCity">
+            <option value="">اختر المدينة...</option>
+            <option>عدن</option><option>لحج</option><option>الضالع</option><option>أبين</option><option>شبوة</option><option>حضرموت</option><option>المهرة</option><option>تعز المدينة</option>
+            <option>صنعاء</option><option>الحديدة</option><option>إب</option><option>عمران</option><option>ذمار</option><option>المحويت</option><option>صعدة</option><option>البيضاء</option><option>تعز الحوبان</option><option>ريمة</option><option>حجة</option><option>مأرب</option>
+          </select>
+
+          <!-- DELIVERY LOCATION (Yemen) -->
+          <div id="deliverySection" style="margin-top:12px;">
+            <label style="font-weight:900">موقع التسليم</label>
+            <div id="deliveryForSanaa" style="display:none;padding:10px;border-radius:10px;background:linear-gradient(90deg,#fffaf4,#fff);border:1px solid rgba(11,18,32,0.06);margin-top:8px">
+              <div style="font-weight:900;color:var(--weps-navy)">التسليم في فرع ويبس صنعاء</div>
+              <div class="small" style="margin-top:6px">🏢 <strong>فرع ويبس صنعاء – شارع حدة – سوق حجر – عمارة مثنى</strong></div>
+              <div class="small" style="margin-top:6px;color:var(--muted)">يمكن أيضًا تحديد موقع مختلف داخل صنعاء من الخريطة أو تحديد موقعي.</div>
+            </div>
+
+            <div id="deliveryForOther" style="display:none;margin-top:8px">
+              <div class="small">لغير صنعاء: استخدم الخريطة أو الإدخال اليدوي</div>
+              <div id="deliveryMap"></div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="useMyLocationBtn" type="button" class="btn btn-quick">📍 تحديد موقعي الحالي</button>
+                <button id="confirmLocationBtn" type="button" class="btn btn-full" style="flex:1">✅ تأكيد هذا الموقع</button>
+              </div>
+
+              <div id="manualFallback">
+                <div class="small"><b>أدخل الموقع يدويًا (اختياري)</b></div>
+                <label>العنوان/الوصف</label>
+                <input id="manualAddress" placeholder="مثال: شارع الزبيري، أمام مسجد..."/>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <div style="flex:1">
+                    <label>Latitude</label>
+                    <input id="manualLat" placeholder="15.3547"/>
+                  </div>
+                  <div style="flex:1">
+                    <label>Longitude</label>
+                    <input id="manualLng" placeholder="44.2066"/>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                  <button id="saveManualLocation" type="button" class="btn btn-quick">💾 حفظ الموقع يدويًا</button>
+                  <div id="manualLocationStatus" class="small" style="flex:1;color:var(--muted)"></div>
+                </div>
+              </div>
+
+              <div id="deliveryLocationDisplay" class="small" style="margin-top:8px;font-weight:800;color:#0b1220">لم يتم اختيار موقع بعد.</div>
+            </div>
+
+            <input type="hidden" id="deliveryLocation" value=""/>
+          </div>
+          <!-- END DELIVERY -->
+        </div>
+      </div>
+      <!-- Step 4: Product Details -->
+      <div class="step-block collapsed" data-step="4">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">4</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">تفاصيل البضاعة</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <div class="row">
+            <div class="field">
+              <label>نوع المنتج <span style="color:var(--weps-orange)">*</span></label>
+              <select id="productType"></select>
+            </div>
+            <div class="field">
+              <label>فئة المنتج</label>
+              <select id="productCategory"></select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <div class="field">
+              <label>نوع الخدمة <span style="color:var(--weps-orange)">*</span></label>
+              <select id="serviceType">
+                <option value="express_yemen">ويبس اكسبريس (7-10 أيام)</option>
+                <option value="air_eco_uae_oman_truck_yemen">جو اقتصادي الإمارات/عمان - بري اليمن (15-20 يوم)</option>
+                <option value="air_aden_via_eg_jo">جو عدن عبر مصر/الأردن (12-18 يوم)</option>
+                <option value="sea_kg_via_uae_truck_yemen">بحر (كجم) عبر الإمارات - بري اليمن (35-45 يوم)</option>
+                <option value="sea_cbm_via_uae_truck_yemen">بحر (م³) مباشر عدن/المكلا (30-40 يوم)</option>
+                <option value="sea_cbm_direct_aden_mukalla">بحر (م³) عبر الإمارات - بري اليمن (40-50 يوم)</option>
+              </select>
+              <div id="serviceTypeDescription" class="service-hint" role="note" aria-live="polite"></div>
+            </div>
+            <div class="field">
+              <label>قيمة البضاعة (USD) <span style="color:var(--weps-orange)">*</span></label>
+              <input id="itemValue" type="number" min="0" step="0.01" value="1000"/>
+            </div>
+          </div>
+
+          <!-- Smart Alerts -->
+          <div id="smartAlertsSection" style="margin-top:12px"></div>
+
+          <label style="margin-top:12px">وصف البضاعة (دقيق)</label>
+          <textarea id="productDesc" rows="2" placeholder="صف البضاعة بدقة"></textarea>
+
+          <!-- insurance -->
+          <div class="insurance-panel" id="insurancePanel" role="region" aria-label="التأمين" style="margin-top:12px">
+            <div class="left">
+              <div style="font-weight:800" id="insuranceStatus">التأمين: سيتم تحديده تلقائياً</div>
+              <div class="small" id="insuranceReason">Clause A/B/C حسب نوع البضاعة</div>
+              <div class="small" id="customsStatus">الجمارك: سيتم تقديرها بعد اختيار الخدمة</div>
+            </div>
+            <div class="right">
+              <div class="tag highlight" id="insuranceBadge">ICC Auto</div>
+              <div class="tag" id="customsBadge">Customs Sync</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px" class="small" style="font-weight:700;color:var(--weps-navy)">📦 أبعاد الطرود والكمية</div>
+          <div id="parcelsArea" style="margin-top:8px">
+            <div class="parcel">
+              <div class="parcel-field">
+                <label>L (سم)</label>
+                <input class="p-length" type="number" placeholder="مثال: 50"/>
+              </div>
+              <div class="parcel-field">
+                <label>W (سم)</label>
+                <input class="p-width" type="number" placeholder="مثال: 40"/>
+              </div>
+              <div class="parcel-field">
+                <label>H (سم)</label>
+                <input class="p-height" type="number" placeholder="مثال: 30"/>
+              </div>
+              <div class="parcel-field">
+                <label>KG</label>
+                <input class="p-weight" type="number" placeholder="مثال: 12.5"/>
+              </div>
+              <input class="p-qty" type="hidden" value="1"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="addParcel" type="button" class="add-btn">+</button>
+            <div class="small">أضف طرد جديد أو ضع كمية للطرد المتشابه</div>
+          </div>
+        </div>
+      </div>
+      <!-- Step 5: Additional Services -->
+      <div class="step-block collapsed" data-step="5">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">5</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">خدمات إضافية (اختياري)</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <!-- Value Added Services -->
+          <div id="valueAddedServicesSection">
+            <div class="small" style="margin-bottom:12px;color:var(--muted)">اختر الخدمات الإضافية المطلوبة (يمكن اختيار أكثر من خدمة) — ستتم إضافة مدة المعالجة تلقائيًا في مدة الشحن.</div>
+            <label style="font-weight:700;color:var(--weps-navy);display:block;margin-bottom:8px">الخدمات الإضافية</label>
+            <div id="vasSelect" style="margin-top:6px;border-radius:12px;border:2px solid rgba(11,18,32,0.1);padding:10px;background:#fff">
+              <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-radius:8px;transition:background 0.2s;margin-bottom:4px" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <input type="checkbox" name="vasOption" value="photo" data-cost="5" data-days="1" style="width:18px;height:18px;cursor:pointer;accent-color:var(--weps-orange)">
+                <span style="flex:1;user-select:none">📸 صور للشحنة — 5 دولار</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-radius:8px;transition:background 0.2s;margin-bottom:4px" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <input type="checkbox" name="vasOption" value="inspection" data-cost="30" data-days="3" style="width:18px;height:18px;cursor:pointer;accent-color:var(--weps-orange)">
+                <span style="flex:1;user-select:none">🛡️ فحص شامل — 30 دولار</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;border-radius:8px;transition:background 0.2s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                <input type="checkbox" name="vasOption" value="purchase" data-percentage="0.10" data-days="2" style="width:18px;height:18px;cursor:pointer;accent-color:var(--weps-orange)">
+                <span style="flex:1;user-select:none">🛒 شراء المنتج — 10% من قيمة المنتجات</span>
+              </label>
+            </div>
+            <div id="vasSelectionSummary" class="small" style="margin-top:8px;color:var(--muted)">لم يتم اختيار خدمات إضافية.</div>
+          </div>
+
+          <!-- Purchase Details (shown when purchase is selected) -->
+          <div id="purchaseDetailsSection" style="display:none;margin-top:12px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid rgba(11,18,32,0.08)">
+            <label style="font-weight:900">تفاصيل الشراء</label>
+            <div class="small" style="margin-bottom:8px;color:var(--muted)">أضف المنتجات المراد شراؤها (10% من قيمة المنتجات سيتم إضافتها للتكلفة)</div>
+            
+            <div id="purchaseProductsList"></div>
+            
+            <button type="button" id="addProductBtn" class="btn btn-quick" style="margin-top:8px">+ إضافة منتج</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6: Shipment Status & Pickup -->
+      <div class="step-block collapsed" data-step="6">
+        <button type="button" class="step-header-btn" aria-expanded="false">
+          <span class="step-header-title">
+            <span class="step-number-badge">6</span>
+            <span style="font-weight:900;font-size:18px;color:var(--weps-navy)">حالة الشحنة والاستلام</span>
+          </span>
+          <span class="chevron">⌃</span>
+        </button>
+
+        <div class="step-content">
+          <label>حالة الشحنة</label>
+          <select id="shipmentState">
+            <option value="not_ready">ليست جاهزة بعد</option>
+            <option value="ready">الشحنة جاهزة للاستلام</option>
+          </select>
+
+          <div id="notReadyBlock" style="margin-top:8px">
+            <label>تاريخ الجاهزية المتوقع</label>
+            <input id="readyDate" type="date"/>
+          </div>
+          <div id="readyBlock" style="display:none;margin-top:8px">
+            <label>طريقة الاستلام</label>
+            <select id="pickupOption">
+              <option value="pickup">نطلب التقاط الشحنة من المورد</option>
+              <option value="toWarehouse">سأرسلها إلى مخازن Weps</option>
+            </select>
+
+            <div class="supplier-section" id="supplierInfo">
+              <label>اسم المصنع / المورد</label>
+              <input id="supplierName" type="text" placeholder="مثال: Shenzhen ABC Electronics Co."/>
+
+              <label style="margin-top:8px">شخص التواصل لدى المورد</label>
+              <input id="supplierContact" type="text" placeholder="مثال: Ms. Li Chen"/>
+
+              <label style="margin-top:8px">دولة المصنع / المورد</label>
+              <input id="supplierCountry" type="text" placeholder="مثال: الصين"/>
+
+              <label style="margin-top:8px">عنوان المصنع / المورد</label>
+              <input id="supplierAddress" type="text" placeholder="العنوان التفصيلي للمصنع أو المخزن"/>
+
+              <label style="margin-top:8px">البريد الإلكتروني للمورد</label>
+              <input id="supplierEmail" type="email" placeholder="example@supplier.com"/>
+
+              <label style="margin-top:8px">هاتف المورد</label>
+              <div class="phone-input" id="supplierPhoneWrapper">
+                <span id="supplierPhoneFlag" class="phone-flag" aria-hidden="true">🇨🇳</span>
+                <input id="supplierPhone" type="text" placeholder="+86 138 0000 0000" autocomplete="tel"/>
+              </div>
+              <div class="supplier-note">سيتم استخدام هذه البيانات للتواصل مع المصنع وتنسيق الاستلام.</div>
+            </div>
+
+            <div id="pickupDetails" style="display:none;margin-top:8px">
+              <label>اسم جهة الاستلام</label><input id="pickupName" placeholder="الاسم"/>
+              <label style="margin-top:6px">رقم الهاتف</label><input id="pickupPhone" placeholder="0096777xxxxxxx"/>
+              <label style="margin-top:6px">وصف مكان الاستلام</label><textarea id="pickupDesc" rows="2"></textarea>
+
+              <!-- China Pickup Map (Supplier Location) -->
+              <div id="chinaPickupMapWrap" style="margin-top:10px;display:block">
+                <div class="small"><b>📍 حدِّد موقع المورد في الصين — ابحث أو اسحب النقطة:</b></div>
+                <div class="map-search" id="wepsMapSearch"></div>
+                <div id="wepsMap"></div>
+                <div id="pickupCalcSummary" class="small" style="margin-top:8px;font-weight:800;color:#0b1220">
+                  لم يتم تحديد موقع المورد بعد.
+                </div>
+                <input type="hidden" id="pickupCalc" value="">
+              </div>
+            </div>
+
+            <div id="warehouseDetails" style="display:none;margin-top:8px">
+              <label>اختر أقرب مخزن</label>
+              <select id="warehouseSelect">
+                <option>Shenzhen</option><option>Shanghai</option><option>Ningbo</option><option>Guangzhou</option><option>Yiwu</option><option>HongKong</option>
+              </select>
+              <div class="small warehouse-note" id="warehouseNotice">سيتم اختيار أقرب مخزن مناسب تلقائياً، ويمكن تغييره عند الحاجة.</div>
+              
+              <!-- Warehouse Address Field (shown only for shipments < $1000 and outside China) -->
+              <div id="warehouseAddressSection" style="display:none;margin-top:12px;padding:12px;background:#fff7ed;border-radius:8px;border:1px solid rgba(245,130,32,0.2)">
+                <label style="font-weight:800;color:var(--weps-navy);margin-bottom:8px">📍 عنوان مخزن ويبس</label>
+                <div id="warehouseAddressDisplay" style="font-size:14px;color:#0b1220;line-height:1.8;margin-bottom:8px"></div>
+                <div id="warehouseRouteSummary" class="small" style="display:none;margin-top:4px;color:#0b1220;font-weight:700"></div>
+                <div style="font-size:12px;color:#f58220;font-weight:700;margin-top:8px;padding:8px;background:#fff;border-radius:6px;border-right:3px solid #f58220">
+                  🏷️ رمز التسليم: <span id="warehouseDXBDisplay">DXB-1702964</span>
+                </div>
+                <div id="warehouseInstruction" class="small" style="display:none;margin-top:8px;color:#6b7280"></div>
+                <div id="warehouseGuidance" style="display:none;margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid rgba(11,18,32,0.1)">
+                  <div id="warehouseGuidanceText" class="small" style="color:#0b1220;line-height:1.8"></div>
+                  <div class="guidance-actions">
+                    <button type="button" id="copyWarehouseGuidance" class="guidance-btn">نسخ التعليمات</button>
+                    <button type="button" id="downloadWarehouseGuidance" class="guidance-btn primary">تنزيل تعليمات المورد</button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Booking Required Notice (for shipments > $1000 outside China) -->
+              <div id="bookingRequiredNotice" style="display:none;margin-top:12px;padding:12px;background:#fff3cd;border-radius:8px;border:1px solid #ffc107">
+                <div style="font-weight:800;color:#856404;margin-bottom:6px">⚠️ تنبيه مهم</div>
+                <div style="font-size:13px;color:#856404;line-height:1.6">
+                  شحنتك تتجاوز 1000 دولار. للشحنات خارج الصين التي تتجاوز هذا المبلغ، تحتاج إلى <strong>حجز مسبق</strong> قبل الشحن.
+                  <br/>يرجى التواصل معنا عبر واتساب لترتيب الحجز.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sales Questions -->
+      <div id="salesQuestionsSection" style="margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid rgba(11,18,32,0.08)">
+        <label style="font-weight:900;margin-bottom:8px">أسئلة سريعة (اختياري)</label>
+        
+        <div style="margin-top:10px">
+          <label class="small">كم عدد الشحنات التي تشحنها شهرياً؟</label>
+          <select id="monthlyShipments" style="margin-top:4px">
+            <option value="">اختر...</option>
+            <option value="1">شحنة واحدة</option>
+            <option value="2-3">2-3 شحنات</option>
+            <option value="3-10">3-10 شحنات</option>
+            <option value="10+">أكثر من 10 شحنات</option>
+          </select>
+        </div>
+        
+        <div style="margin-top:10px">
+          <label class="small">برأيك، ما هي الخدمة المتكاملة التي تبحث عنها في الشحن؟ (بالترتيب)</label>
+          <select id="servicePriority" style="margin-top:4px">
+            <option value="">اختر...</option>
+            <option value="price">سعر أرخص</option>
+            <option value="speed">وقت توصيل أسرع</option>
+            <option value="comprehensive">خدمة شاملة كل التكاليف</option>
+            <option value="support">خدمة عملاء ممتازة</option>
+            <option value="ideal">سعر مثالي + وقت توصيل أسرع</option>
+            <option value="all">كل ما سبق (خدمة شاملة)</option>
+          </select>
+          <div id="servicePriorityDescription" class="service-hint" role="note" aria-live="polite"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <button id="calculateBtn" type="button" class="btn btn-quick" style="flex:1;font-size:16px;padding:14px">اعرف كم بتكلفك الشحنة بذكاء مع Weps</button>
+        <button id="resetBtn" type="button" class="btn" style="background:transparent;border:1px solid rgba(11,18,32,0.12)">إعادة ضبط</button>
+      </div>
+
+      <div id="inputError" class="small" style="color:#c74a4a;display:none;margin-top:8px"></div>
+    </form>
+  </div>
+
+  <!-- Right: Results -->
+  <div class="card" id="resultsCard">
+    <div id="resultsArea" class="results"><div class="small">اضغط على الزر "اعرف كم بتكلفك الشحنة بذكاء مع Weps" لعرض النتائج.</div></div>
+    <div id="comparisonWrap" style="margin-top:12px"></div>
+    <div id="reportOptions" class="small" style="margin-top:12px;padding:10px;background:#f9fafb;border:1px solid rgba(11,18,32,0.08);border-radius:10px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="includeAllServicesReport" checked style="width:16px;height:16px;accent-color:var(--weps-orange)">
+      <label for="includeAllServicesReport" style="margin:0;font-weight:700;color:var(--weps-navy)">عرض جميع خيارات الشحن في التقرير النهائي</label>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <a id="downloadOfferBtnHTML" class="btn" style="background:linear-gradient(90deg,var(--weps-orange),#ff9d46);color:#042233;display:none">📄 تحميل HTML</a>
+      <a id="downloadOfferBtnPDF" class="btn" style="background:linear-gradient(90deg,var(--weps-navy),#1a2332);color:#fff;display:none">📑 تحميل PDF</a>
+      <a id="waDiscuss" class="btn" style="background:transparent;border:1px solid rgba(11,18,32,0.12);display:none">💬 ناقش عبر واتساب</a>
+    </div>
+    <div style="margin-top:10px" class="small">ملاحظة: يرجى كتابة رقم العرض على الشحنة أثناء التسليم لتفادي الضياع.</div>
+    <div class="footer">© Weps Platform — <span id="yearNow"></span></div>
+  </div>
+</div>
+<!-- Help Popup -->
+<div class="help-toggle" id="helpToggle" onclick="toggleHelp()">❓</div>
+<div class="help-popup" id="helpPopup">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid rgba(11,18,32,0.1)">
+    <h3 style="margin:0;color:var(--weps-navy);font-size:18px">❓ الأسئلة الشائعة والدليل</h3>
+    <button onclick="toggleHelp()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:var(--muted)">×</button>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('quick')">
+    <div class="help-item-title">⚡ الوضع السريع</div>
+    <div class="help-item-desc">حساب سريع بالدولة والوجهة والوزن فقط</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('full')">
+    <div class="help-item-title">📋 الوضع الكامل</div>
+    <div class="help-item-desc">حساب تفصيلي مع جميع الخيارات والخدمات الإضافية</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('origin')">
+    <div class="help-item-title">📍 موقع الشحنة</div>
+    <div class="help-item-desc">حدد موقع الشحنة على الخريطة - سيتم حساب المسافة للمخزن تلقائياً</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('services')">
+    <div class="help-item-title">🛠️ الخدمات الإضافية</div>
+    <div class="help-item-desc">صور، فحص، تجربة، أو شراء المنتج - تضيف 3-4 أيام معالجة</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('insurance')">
+    <div class="help-item-title">🛡️ التأمين الذكي</div>
+    <div class="help-item-desc">يتم تحديد نوع التأمين تلقائياً حسب نوع البضاعة (Clause A/B/C)</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('customs')">
+    <div class="help-item-title">📦 الجمارك</div>
+    <div class="help-item-desc">للشمال: تمر بجمارك الجنوب أولاً ثم الشمال. للجنوب: جمارك الجنوب فقط</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('discounts')">
+    <div class="help-item-title">💎 الخصومات</div>
+    <div class="help-item-desc">5% للعملاء الجدد | 15% للعقود طويلة المدى</div>
+  </div>
+  
+  <div class="help-item" onclick="showHelpDetail('dxb')">
+    <div class="help-item-title">🏷️ رقم DXB</div>
+    <div class="help-item-desc">ما هو رقم DXB ولماذا هو مهم؟</div>
+  </div>
+  
+  <div style="margin-top:20px;padding:12px;background:#fff7ed;border-radius:8px;text-align:center">
+    <div style="font-weight:800;margin-bottom:8px">🎬 دليل شامل</div>
+    <a href="https://www.youtube.com/@%D9%88%D9%8A%D8%A8%D8%B3_%D9%84%D9%84%D8%B4%D8%AD%D9%86/playlists" target="_blank" style="color:var(--weps-orange);text-decoration:underline;font-weight:800">شاهد على يوتيوب</a>
+  </div>
+</div>
+
+<!-- Survey Popup -->
+<div class="survey-overlay" id="surveyOverlay" style="display:none">
+  <div class="survey-popup" id="surveyPopup">
+    <div class="survey-header">
+      <h2 style="margin:0;color:var(--weps-navy);font-size:22px;font-weight:900">📊 ساعدنا في تحسين تجربتك</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--weps-muted);line-height:1.6">نود معرفة رأيك في حاسبة ويبس لتقديم خدمة أفضل</p>
+    </div>
+    
+    <form id="surveyForm" class="survey-body">
+      <!-- Question 1 -->
+      <div class="survey-question">
+        <label class="survey-question-label">1. ما مدى سهولة استخدام الحاسبة؟ <span style="color:var(--weps-orange)">*</span></label>
+        <div class="survey-options">
+          <label class="survey-option">
+            <input type="radio" name="q1_ease" value="سهل جدًا" required>
+            <span>سهل جدًا</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q1_ease" value="متوسط" required>
+            <span>متوسط</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q1_ease" value="معقد" required>
+            <span>معقد</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 2 -->
+      <div class="survey-question">
+        <label class="survey-question-label">2. هل أعطتك الحاسبة المعلومات التي تحتاجها؟ <span style="color:var(--weps-orange)">*</span></label>
+        <div class="survey-options">
+          <label class="survey-option">
+            <input type="radio" name="q2_info" value="نعم" required>
+            <span>نعم</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q2_info" value="تقريبًا" required>
+            <span>تقريبًا</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q2_info" value="لا" required>
+            <span>لا</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 3 -->
+      <div class="survey-question">
+        <label class="survey-question-label">3. هل الأسعار مناسبة بالنسبة لك؟ <span style="color:var(--weps-orange)">*</span></label>
+        <div class="survey-options">
+          <label class="survey-option">
+            <input type="radio" name="q3_price" value="نعم" required>
+            <span>نعم</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q3_price" value="لا" required>
+            <span>لا</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q3_price" value="ربما" required>
+            <span>ربما</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 4 -->
+      <div class="survey-question">
+        <label class="survey-question-label">4. ما أهم معلومة بالنسبة لك؟ <span style="color:var(--weps-orange)">*</span></label>
+        <div class="survey-options">
+          <label class="survey-option">
+            <input type="radio" name="q4_priority" value="تكلفة الشحن" required>
+            <span>تكلفة الشحن</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q4_priority" value="الجمارك" required>
+            <span>الجمارك</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q4_priority" value="التأمين" required>
+            <span>التأمين</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q4_priority" value="وقت التوصيل" required>
+            <span>وقت التوصيل</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 5 -->
+      <div class="survey-question">
+        <label class="survey-question-label">5. هل ترغب في استخدام الحاسبة مستقبلًا في شحناتك القادمة؟ <span style="color:var(--weps-orange)">*</span></label>
+        <div class="survey-options">
+          <label class="survey-option">
+            <input type="radio" name="q5_future" value="نعم" required>
+            <span>نعم</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q5_future" value="ربما" required>
+            <span>ربما</span>
+          </label>
+          <label class="survey-option">
+            <input type="radio" name="q5_future" value="لا" required>
+            <span>لا</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 6 -->
+      <div class="survey-question">
+        <label class="survey-question-label">6. ما الذي تريد إضافته أو تحسينه؟</label>
+        <textarea id="q6_suggestions" name="q6_suggestions" class="survey-textarea" rows="3" placeholder="اكتب اقتراحاتك هنا (اختياري)..."></textarea>
+      </div>
+
+      <!-- Question 7 -->
+      <div class="survey-question">
+        <label class="survey-question-label">7. كم عدد الشحنات التي تقوم بشحنها سنويًا؟ <span style="color:var(--weps-orange)">*</span></label>
+        <select id="q7_shipments" name="q7_shipments" class="survey-select" required>
+          <option value="">اختر...</option>
+          <option value="شحنة">شحنة</option>
+          <option value="شحنتين">شحنتين</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="أكثر من 10">أكثر من 10</option>
+        </select>
+      </div>
+
+      <div id="surveyError" class="survey-error" style="display:none"></div>
+      
+      <button type="submit" id="surveySubmitBtn" class="survey-submit-btn">
+        <span id="surveySubmitText">إرسال</span>
+        <span id="surveySubmitLoading" class="loading" style="display:none;width:20px;height:20px;margin:0 auto"></span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script type="text/javascript" src="https://botsailor.com/script/webchat-link.js?code=175493067557904"></script>
+</body>
+</html>

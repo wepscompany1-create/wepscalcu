@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>WEPS – Freight-Grade Customs Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #eef2ff, #f8fafc);
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-size: 26px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      background: #f9fafb;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .field label {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #374151;
+      font-weight: bold;
+    }
+    .field input, .field select {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+    }
+    .actions {
+      text-align: center;
+      margin-top: 20px;
+    }
+    button {
+      padding: 14px 40px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(37,99,235,0.35);
+    }
+
+    .results {
+      margin-top: 30px;
+      background: #f9fafb;
+      padding: 18px;
+      border-radius: 14px;
+    }
+
+    .results table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .results th, .results td {
+      padding: 11px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: right;
+      font-size: 14px;
+    }
+
+    .section { background: #eef2ff; font-weight: bold; }
+    .total { background: #111827; color: #fff; font-size: 18px; font-weight: bold; }
+
+    /* Color Coding */
+    .tariff { background: #fef3c7; }
+    .sales { background: #dbeafe; }
+    .vat { background: #dcfce7; }
+    .profit { background: #ede9fe; }
+    .funds { background: #fee2e2; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+    .legend span {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: #b91c1c;
+      font-size: 13px;
+    }
+
+    /* Readonly fields styling */
+    input[readonly] {
+      background: #e0e7ff !important;
+      cursor: not-allowed !important;
+      border: 2px solid #818cf8 !important;
+    }
+
+    .loading-indicator {
+      text-align: center;
+      padding: 10px;
+      color: #2563eb;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>حاسبة الجمارك التشغيلية – WEPS</h1>
+
+  <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+    ⏳ جاري تحميل أسعار الصرف من Monday.com...
+  </div>
+
+  <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+  <div class="grid">
+    <div class="field">
+      <label>نوع البضاعة</label>
+      <select id="commodityType">
+        <option value="">-- اختر نوع البضاعة --</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>الوجهة (مدن اليمن)</label>
+      <select id="region">
+        <optgroup label="🇾🇪 المحافظات الشمالية">
+          <option value="صنعاء">صنعاء</option>
+          <option value="أمانة العاصمة">أمانة العاصمة</option>
+          <option value="صعدة">صعدة</option>
+          <option value="عمران">عمران</option>
+          <option value="حجة">حجة</option>
+          <option value="المحويت">المحويت</option>
+          <option value="ريمة">ريمة</option>
+          <option value="ذمار">ذمار</option>
+          <option value="إب">إب</option>
+          <option value="تعز">تعز</option>
+          <option value="الحديدة">الحديدة</option>
+          <option value="مأرب">مأرب</option>
+          <option value="الجوف">الجوف</option>
+          <option value="البيضاء">البيضاء</option>
+        </optgroup>
+        <optgroup label="🇾🇪 المحافظات الجنوبية">
+          <option value="عدن">عدن</option>
+          <option value="لحج">لحج</option>
+          <option value="أبين">أبين</option>
+          <option value="الضالع">الضالع</option>
+          <option value="شبوة">شبوة</option>
+          <option value="حضرموت">حضرموت</option>
+          <option value="المهرة">المهرة</option>
+          <option value="سقطرى">سقطرى</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>قيمة البضاعة بالدولار (CIF)</label>
+      <input type="number" id="cifUsd" value="26350">
+    </div>
+
+    <div class="field">
+      <label>التعرفة الجمركية %</label>
+      <input type="number" id="tariffRate" value="5">
+    </div>
+
+    <div class="field">
+      <label>سعر الصرف الجمركي – شمال</label>
+      <input type="number" id="customsFxNorth" value="250" readonly>
+    </div>
+
+    <div class="field">
+      <label>سعر الصرف الجمركي – جنوب</label>
+      <input type="number" id="customsFxSouth" value="750" readonly>
+    </div>
+
+    <div class="field">
+      <label>سعر السوق – شمال</label>
+      <input type="number" id="avgFxRate" value="534" readonly>
+    </div>
+
+    <div class="field">
+      <label>سعر السوق مقابل الدولار – جنوب</label>
+      <input type="number" id="southMarketFx" value="750" readonly>
+    </div>
+
+    <div class="field">
+      <label>ضريبة المبيعات %</label>
+      <input type="number" id="salesTaxRate" value="5">
+    </div>
+
+    <div class="field">
+      <label>ضريبة القيمة المضافة %</label>
+      <input type="number" id="vatRate" value="5">
+    </div>
+
+    <div class="field">
+      <label>ضريبة الأرباح %</label>
+      <input type="number" id="profitTaxRate" value="3">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button onclick="runCalculation()">تنفيذ الحساب النهائي</button>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <!-- جدول القيم الأساسية (القيمة الجمركية والقيمة السوقية) -->
+  <div class="results" id="baseValues"></div>
+
+  <div class="legend">
+    <span class="tariff">التعرفة</span>
+    <span class="sales">ضريبة المبيعات</span>
+    <span class="vat">ضريبة القيمة المضافة</span>
+    <span class="profit">ضريبة الأرباح</span>
+    <span class="funds">الصناديق</span>
+  </div>
+
+  <div class="note">
+    ⚠️ يتم احتساب غرامات عند اختلاف القيمة أو الكمية عن النظام الجمركي (60% فرق قيمة – 40% فرق كمية) + 10% حصة مخبرين.
+  </div>
+</div>
+
+<script>
+// Monday.com API Configuration
+const MONDAY_API_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjU2NjIyMzEyNiwiYWFpIjoxMSwidWlkIjo3Mzg2OTI3NiwiaWFkIjoiMjAyNS0wOS0yNFQxODoyNjoxNi4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6ODQ1ODk5OSwicmduIjoidXNlMSJ9.GeSStga5orLvTsrxMsh1VYK5eNldRINHt9kkxNS9bJo";
+const MONDAY_BOARD_ID_RATES = "7406444729";  // Board for exchange rates
+const MONDAY_BOARD_ID_COMMODITIES = "7406443393";  // Board for commodity types
+const MONDAY_API_URL = "https://api.monday.com/v2";
+
+// Yemen Provinces Classification
+const NORTHERN_PROVINCES = [
+  "صنعاء", "أمانة العاصمة", "صعدة", "عمران", "حجة", "المحويت", 
+  "ريمة", "ذمار", "إب", "تعز", "الحديدة", "مأرب", "الجوف", "البيضاء"
+];
+
+const SOUTHERN_PROVINCES = [
+  "عدن", "لحج", "أبين", "الضالع", "شبوة", "حضرموت", 
+  "المهرة", "سقطرى"
+];
+
+// Helper function to determine if province is northern
+function isNorthernProvince(province) {
+  return NORTHERN_PROVINCES.includes(province);
+}
+
+// Column IDs mapping for Exchange Rates Board
+const COLUMN_IDS = {
+  southMarketFx: "numeric_mkyhrswn",    // سعر السوق مقابل الدولار – جنوب
+  customsFxNorth: "numeric_mkyhqzar",   // سعر الصرف الجمركي – شمال
+  customsFxSouth: "numeric_mkyhhzkf",   // سعر الصرف الجمركي – جنوب
+  avgFxRate: "numeric_mkyhqmtz"         // سعر السوق – شمال
+};
+
+// Column IDs mapping for Commodities Board
+const COMMODITY_COLUMN_IDS = {
+  commodityType: "text_mkwdfwyy",           // نوع البضاعة
+  tariffSouth: "numeric_mkwbvqc1",          // التعرفة الجمركية - جنوب
+  tariffNorth: "numeric_mkwyy2fn",          // التعرفة الجمركية - شمال
+  salesTax: "numeric_mkwxk61m",             // ضريبة المبيعات
+  vat: "numeric_mkwyn5b8",                  // ضريبة القيمة المضافة
+  profitTax: "numeric_mkwyw5dx"             // ضريبة الأرباح
+};
+
+// Global storage for commodity data
+let commoditiesData = [];
+
+// Fetch exchange rates from Monday.com
+async function fetchFromMonday() {
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  const errorMessage = document.getElementById("errorMessage");
+  
+  // Show loading indicator
+  loadingIndicator.style.display = "block";
+  errorMessage.style.display = "none";
+
+  try {
+    const query = `
+      query {
+        boards(ids: [${MONDAY_BOARD_ID_RATES}]) {
+          items_page(limit: 1) {
+            items {
+              id
+              name
+              column_values {
+                id
+                value
+                text
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await fetch(MONDAY_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": MONDAY_API_TOKEN
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.errors) {
+      throw new Error(data.errors[0].message);
+    }
+
+    const items = data.data?.boards?.[0]?.items_page?.items;
+    
+    if (!items || items.length === 0) {
+      throw new Error("لا توجد بيانات في اللوحة");
+    }
+
+    const firstItem = items[0];
+    const columnValues = firstItem.column_values;
+
+    // Map column values to input fields
+    columnValues.forEach(col => {
+      let inputId = null;
+      
+      // Find matching input field
+      if (col.id === COLUMN_IDS.southMarketFx) {
+        inputId = "southMarketFx";
+      } else if (col.id === COLUMN_IDS.customsFxNorth) {
+        inputId = "customsFxNorth";
+      } else if (col.id === COLUMN_IDS.customsFxSouth) {
+        inputId = "customsFxSouth";
+      } else if (col.id === COLUMN_IDS.avgFxRate) {
+        inputId = "avgFxRate";
+      }
+
+      if (inputId && col.text) {
+        const value = parseFloat(col.text);
+        if (!isNaN(value)) {
+          document.getElementById(inputId).value = value;
+        }
+      }
+    });
+
+    // Hide loading indicator
+    loadingIndicator.style.display = "none";
+    
+    console.log("✅ تم تحميل أسعار الصرف بنجاح من Monday.com");
+
+  } catch (error) {
+    console.error("❌ خطأ في جلب البيانات:", error);
+    
+    // Show error message
+    loadingIndicator.style.display = "none";
+    errorMessage.style.display = "block";
+    errorMessage.innerHTML = `
+      ⚠️ تعذر تحميل أسعار الصرف من Monday.com: ${error.message}<br>
+      سيتم استخدام القيم الافتراضية المحفوظة.
+    `;
+  }
+}
+
+// Fetch commodity types from Monday.com
+async function fetchCommodityTypes() {
+  const commodityDropdown = document.getElementById("commodityType");
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  const errorMessage = document.getElementById("errorMessage");
+
+  try {
+    const query = `
+      query {
+        boards(ids: [${MONDAY_BOARD_ID_COMMODITIES}]) {
+          items_page(limit: 500) {
+            items {
+              id
+              name
+              column_values {
+                id
+                value
+                text
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await fetch(MONDAY_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": MONDAY_API_TOKEN
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.errors) {
+      throw new Error(data.errors[0].message);
+    }
+
+    const items = data.data?.boards?.[0]?.items_page?.items;
+    
+    if (!items || items.length === 0) {
+      throw new Error("لا توجد أنواع بضائع في اللوحة");
+    }
+
+    // Store commodity data globally
+    commoditiesData = items.map(item => {
+      const commodityData = {
+        id: item.id,
+        name: item.name
+      };
+
+      // Extract column values
+      item.column_values.forEach(col => {
+        if (col.id === COMMODITY_COLUMN_IDS.commodityType) {
+          commodityData.commodityType = col.text || item.name;
+        } else if (col.id === COMMODITY_COLUMN_IDS.tariffSouth) {
+          commodityData.tariffSouth = col.text ? parseFloat(col.text) : 0;
+        } else if (col.id === COMMODITY_COLUMN_IDS.tariffNorth) {
+          commodityData.tariffNorth = col.text ? parseFloat(col.text) : 0;
+        } else if (col.id === COMMODITY_COLUMN_IDS.salesTax) {
+          commodityData.salesTax = col.text ? parseFloat(col.text) : 0;
+        } else if (col.id === COMMODITY_COLUMN_IDS.vat) {
+          commodityData.vat = col.text ? parseFloat(col.text) : 0;
+        } else if (col.id === COMMODITY_COLUMN_IDS.profitTax) {
+          commodityData.profitTax = col.text ? parseFloat(col.text) : 0;
+        }
+      });
+
+      return commodityData;
+    });
+
+    // Populate dropdown
+    commodityDropdown.innerHTML = '<option value="">-- اختر نوع البضاعة --</option>';
+    commoditiesData.forEach(commodity => {
+      const option = document.createElement("option");
+      option.value = commodity.id;
+      option.textContent = commodity.commodityType || commodity.name;
+      commodityDropdown.appendChild(option);
+    });
+
+    console.log("✅ تم تحميل أنواع البضائع بنجاح من Monday.com");
+
+  } catch (error) {
+    console.error("❌ خطأ في جلب أنواع البضائع:", error);
+    
+    // Show error message
+    errorMessage.style.display = "block";
+    errorMessage.innerHTML += `<br>⚠️ تعذر تحميل أنواع البضائع: ${error.message}`;
+  }
+}
+
+// Handle commodity type selection
+function onCommodityChange() {
+  const commodityDropdown = document.getElementById("commodityType");
+  const selectedCommodityId = commodityDropdown.value;
+
+  if (!selectedCommodityId) {
+    // Clear and unlock fields if no commodity is selected
+    document.getElementById("tariffRate").value = "";
+    document.getElementById("salesTaxRate").value = "";
+    document.getElementById("vatRate").value = "";
+    document.getElementById("profitTaxRate").value = "";
+    
+    document.getElementById("tariffRate").removeAttribute("readonly");
+    document.getElementById("salesTaxRate").removeAttribute("readonly");
+    document.getElementById("vatRate").removeAttribute("readonly");
+    document.getElementById("profitTaxRate").removeAttribute("readonly");
+    return;
+  }
+
+  // Find the selected commodity data
+  const selectedCommodity = commoditiesData.find(c => c.id === selectedCommodityId);
+
+  if (!selectedCommodity) {
+    console.error("❌ لم يتم العثور على بيانات البضاعة المختارة");
+    return;
+  }
+
+  // Determine which tariff to use based on selected region
+  const selectedProvince = document.getElementById("region").value;
+  const isNorth = isNorthernProvince(selectedProvince);
+  const tariffRate = isNorth ? selectedCommodity.tariffNorth : selectedCommodity.tariffSouth;
+
+  // Fill the fields with readonly attribute
+  document.getElementById("tariffRate").value = tariffRate || 0;
+  document.getElementById("salesTaxRate").value = selectedCommodity.salesTax || 0;
+  document.getElementById("vatRate").value = selectedCommodity.vat || 0;
+  document.getElementById("profitTaxRate").value = selectedCommodity.profitTax || 0;
+
+  // Make fields readonly
+  document.getElementById("tariffRate").setAttribute("readonly", "readonly");
+  document.getElementById("salesTaxRate").setAttribute("readonly", "readonly");
+  document.getElementById("vatRate").setAttribute("readonly", "readonly");
+  document.getElementById("profitTaxRate").setAttribute("readonly", "readonly");
+
+  console.log("✅ تم تحميل بيانات البضاعة:", selectedCommodity);
+}
+
+// Handle region change to update tariff
+function onRegionChange() {
+  const commodityDropdown = document.getElementById("commodityType");
+  const selectedCommodityId = commodityDropdown.value;
+
+  if (!selectedCommodityId) {
+    return; // No commodity selected, nothing to update
+  }
+
+  // Find the selected commodity data
+  const selectedCommodity = commoditiesData.find(c => c.id === selectedCommodityId);
+
+  if (!selectedCommodity) {
+    return;
+  }
+
+  // Determine which tariff to use based on selected region
+  const selectedProvince = document.getElementById("region").value;
+  const isNorth = isNorthernProvince(selectedProvince);
+  const tariffRate = isNorth ? selectedCommodity.tariffNorth : selectedCommodity.tariffSouth;
+
+  // Update only the tariff field
+  document.getElementById("tariffRate").value = tariffRate || 0;
+
+  console.log("✅ تم تحديث التعرفة الجمركية حسب المنطقة");
+}
+
+// Load data when page loads
+window.addEventListener("DOMContentLoaded", function() {
+  fetchFromMonday();
+  fetchCommodityTypes();
+  
+  // Attach event listeners
+  document.getElementById("commodityType").addEventListener("change", onCommodityChange);
+  document.getElementById("region").addEventListener("change", onRegionChange);
+});
+
+function runCalculation() {
+  const selectedProvince = document.getElementById("region").value;
+  // Determine region type based on province
+  const region = isNorthernProvince(selectedProvince) ? "north" : "south";
+  
+  const cifUsd = Number(document.getElementById("cifUsd").value);
+  const tariffRate = Number(document.getElementById("tariffRate").value) / 100;
+
+  const customsFxNorth = Number(document.getElementById("customsFxNorth").value);
+  const customsFxSouth = Number(document.getElementById("customsFxSouth").value);
+  const avgFxRate = Number(document.getElementById("avgFxRate").value);
+  const southMarketFx = Number(document.getElementById("southMarketFx").value);
+
+  const salesTaxRate = Number(document.getElementById("salesTaxRate").value) / 100;
+  const vatRate = Number(document.getElementById("vatRate").value) / 100;
+  const profitTaxRate = Number(document.getElementById("profitTaxRate").value) / 100;
+
+  // ===================== الجنوب =====================
+  const southCustomsValue = cifUsd * customsFxSouth;
+  const southTariff = southCustomsValue * tariffRate;
+  const southTaxable = southCustomsValue + southTariff;
+  const southSalesTax = southTaxable * salesTaxRate;
+  const southVat = southTaxable * vatRate;
+  const southProfitTax = southTaxable * profitTaxRate;
+  const southFixedFees = southCustomsValue * 0.02;
+
+  const southPayableYER = southTariff + southSalesTax + southVat + southProfitTax + southFixedFees;
+  const southPayableUSD = southPayableYER / southMarketFx;
+
+  // ===================== الشمال =====================
+  const northCustomsValue = cifUsd * customsFxNorth;
+  const northTariffHalf = northCustomsValue * (tariffRate / 2);
+  const northMarketValue = cifUsd * avgFxRate;
+  const northFullTariffForTax = northCustomsValue * tariffRate;
+  const northTaxable = northMarketValue + northFullTariffForTax;
+  const northSalesTax = northTaxable * salesTaxRate;
+  const northVat = northTaxable * vatRate;
+  const northProfitTax = northTaxable * profitTaxRate;
+  const northFixedFees = (northCustomsValue * 0.06) + 3000;
+
+  const northPayableYER = northTariffHalf + northSalesTax + northVat + northProfitTax + northFixedFees;
+  const northPayableUSD = northPayableYER / avgFxRate;
+
+  const finalPayableUSD = region === "north"
+    ? southPayableUSD + northPayableUSD
+    : southPayableUSD;
+
+  let breakdownNorth = "";
+  if (region === "north") {
+    breakdownNorth = `
+      <tr class="section"><td colspan="2">تحليل تحصيل الشمال</td></tr>
+      <tr class="tariff"><td>التعرفة (نصف)</td><td>${northTariffHalf.toLocaleString()} ريال</td></tr>
+      <tr class="sales"><td>ضريبة المبيعات</td><td>${northSalesTax.toLocaleString()} ريال</td></tr>
+      <tr class="vat"><td>ضريبة القيمة المضافة</td><td>${northVat.toLocaleString()} ريال</td></tr>
+      <tr class="profit"><td>ضريبة الأرباح</td><td>${northProfitTax.toLocaleString()} ريال</td></tr>
+      <tr class="funds"><td>الصناديق</td><td>${northFixedFees.toLocaleString()} ريال</td></tr>
+      <tr><td>إجمالي الشمال (USD)</td><td>${northPayableUSD.toFixed(2)} USD</td></tr>
+    `;
+  }
+
+  // ---------------- جدول القيم الأساسية (مرجع الضرائب) ----------------
+
+  const baseValues = `
+  <table>
+    <tr><th colspan="2">📊 جدول القيم المرجعية للحساب</th></tr>
+
+    <tr class="section"><td colspan="2">الجنوب</td></tr>
+    <tr><td>القيمة الجمركية – جنوب</td><td>${southCustomsValue.toLocaleString()} ريال</td></tr>
+    <tr><td>القيمة السوقية – جنوب</td><td>${southCustomsValue.toLocaleString()} ريال</td></tr>
+    <tr><td>القيمة الخاضعة للضريبة – جنوب</td><td>${southTaxable.toLocaleString()} ريال</td></tr>
+
+    <tr class="section"><td colspan="2">الشمال</td></tr>
+    <tr><td>القيمة الجمركية – شمال</td><td>${northCustomsValue.toLocaleString()} ريال</td></tr>
+    <tr><td>القيمة السوقية – شمال</td><td>${northMarketValue.toLocaleString()} ريال</td></tr>
+    <tr><td>القيمة الخاضعة للضريبة – شمال</td><td>${northTaxable.toLocaleString()} ريال</td></tr>
+  </table>`;
+
+  // ---------------- جدول تحليل الرسوم ----------------
+
+  const results = `
+  <table>
+    <tr><th>البند</th><th>القيمة</th></tr>
+
+    <tr class="section"><td colspan="2">تحليل تحصيل الجنوب</td></tr>
+    <tr class="tariff"><td>التعرفة</td><td>${southTariff.toLocaleString()} ريال</td></tr>
+    <tr class="sales"><td>ضريبة المبيعات</td><td>${southSalesTax.toLocaleString()} ريال</td></tr>
+    <tr class="vat"><td>ضريبة القيمة المضافة</td><td>${southVat.toLocaleString()} ريال</td></tr>
+    <tr class="profit"><td>ضريبة الأرباح</td><td>${southProfitTax.toLocaleString()} ريال</td></tr>
+    <tr class="funds"><td>الصناديق</td><td>${southFixedFees.toLocaleString()} ريال</td></tr>
+    <tr><td>إجمالي الجنوب (USD)</td><td>${southPayableUSD.toFixed(2)} USD</td></tr>
+
+    ${breakdownNorth}
+
+    <tr class="total">
+      <td>✅ المبلغ النهائي المستحق على العميل</td>
+      <td>${finalPayableUSD.toFixed(2)} USD</td>
+    </tr>
+  </table>`;
+
+  document.getElementById("results").innerHTML = results;
+  document.getElementById("baseValues").innerHTML = baseValues;
+}
+</script>
+
+</body>
+</html>
